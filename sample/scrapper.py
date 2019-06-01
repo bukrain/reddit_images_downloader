@@ -6,67 +6,126 @@ import urllib.error as reqError
 import os
 import time
 import logging
+import requests
+import json
+from errors import UserLimitError, ClientLimitError
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-IMG_DIR = ROOT + "\\images\\"
 
-def get_time(created):
-    return dt.datetime.timestamp(created)
+class Scrapper:
+    ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    IMG_DIR = ROOT + "\\images\\"
+    DATA_FILE = ROOT + "\\data\\data.json"
+    api_data = {}
 
-def get_content_type(info):
-    for item in info.split("\n"):
-        if item.startswith("Content-Type"):
-            ctype = item.split(' ')[1].split('/')
-            if ctype[0] == "image":
-                return ctype[1]
-            elif ctype == "video":
-                return ctype[1]
-    return "No"
+    def __init__(self):
+        if os.path.isfile(self.DATA_FILE):
+            with open(self.DATA_FILE, "r") as f:
+                self.api_data = json.load(f)
+        else:
+            data = {
+                "reddit_data":{
+                    "client_id": "",
+                    "client_secret": "",
+                    "user_agent": "",
+                    "username": "",
+                    "password": ""
+                },
+                "imgur_data":{
+                    "client_id": "",
+                    "remaining_client": 12500,
+                    "remaining_user": 500,
+                    "client_limit": 50,
+                    "user_limit": 50
+                }
+            }
+            with open(self.DATA_FILE, "w") as f:
+                json.dump(data,f)
 
-def sub_exists(subreddit_name, reddit):
-    exists = True
-    try:
-        reddit.subreddits.search_by_name(subreddit_name, exact = True)
-    except pwc.exceptions.NotFound:
-        exists = False
-    return exists
+    def get_time(self, created):
+        return dt.datetime.timestamp(created)
 
-def get_images(subreddit_name):
-    logging.basicConfig(format='%(asctime)s - %(message)s', filename="log.log", filemode='a', level=logging.INFO)
+    def get_content_type(self, info):
+        for item in info.split("\n"):
+            if item.startswith("Content-Type"):
+                ctype = item.split(' ')[1].split('/')
+                if ctype[0] == "image":
+                    print(ctype[1])
+                    return ctype[1]
+                elif ctype[0] == "video":
+                    return ctype[1]
+        return "No"
 
-    reddit = praw.Reddit(client_id='ID',\
-                        client_secret='SECRET',\
-                        user_agent='AGENT',\
-                        username='USERNAME',\
-                        password='PASSWORD')
+    def sub_exists(self, subreddit_name, reddit):
+        exists = True
+        try:
+            reddit.subreddits.search_by_name(subreddit_name, exact = True)
+        except pwc.exceptions.NotFound:
+            exists = False
+        return exists
 
-    if sub_exists(subreddit_name, reddit):
-        subreddit = reddit.subreddit(subreddit_name)
-        for sub in subreddit.display_name.split('+'):
-            if not os.path.exists(IMG_DIR + sub):
-                os.makedirs(IMG_DIR + sub)
+    def get_imgur_image_url(self, url):
+        id_image = url.split('/')[3]
+        api_url = 'https://api.imgur.com/3/image/'+ id_image
+        headers = {
+            'Authorization': 'Client-ID '+self.api_data["imgur_data"]["client_id"]
+        }
+        response = requests.request('GET', api_url, headers = headers, allow_redirects=False)
+        if 'X-RateLimit-ClientRemaining' in response.headers.keys():
+            self.api_data["imgur_data"]["remaining_client"] = int(response.headers['X-RateLimit-ClientRemaining'])
+        if 'X-RateLimit-UserRemaining' in response.headers.keys():
+            self.api_data["imgur_data"]["remaining_user"] = int(response.headers['X-RateLimit-UserRemaining'])
+        with open(self.DATA_FILE,"w") as f:
+            json.dump(self.api_data,f)
+        return response.json()["data"]["link"]
 
-        top_subreddit = subreddit.top(limit=10)
+    def get_images(self, subreddit_name):
+        logging.basicConfig(format='%(asctime)s - %(message)s', filename="log.log", filemode='a', level=logging.INFO)
 
-        for submission in top_subreddit:
-            dir = IMG_DIR + submission.subreddit.display_name + "\\" 
-            try:
-                with req.urlopen(submission.url) as url:
-                    try:
-                        info = url.info().as_string()
-                    except reqError.URLError:
-                        logging.warning('Can\'t get header of {0}'.format(submission.url))
-                    content_type = get_content_type(info)
-                    if content_type != "No":
-                        id = submission.id
-                        with open(dir + id + '.' + content_type, "b+w") as f:
-                            f.write(url.read())
-                            logging.info('Downloaded from {0}'.format(submission.url))
-                    else:
-                        logging.info('Not image or video {0}'.format(submission.url))
-            except reqError.URLError:
-                logging.warning('Can\'t open {0}'.format(submission.url))
-    else:
-        logging.error("Subreddit: {0} doesn't exists".format(subreddit_name))
+        reddit = praw.Reddit(client_id=self.api_data["reddit_data"]["client_id"],\
+                            client_secret=self.api_data["reddit_data"]["client_secret"],\
+                            user_agent=self.api_data["reddit_data"]["user_agent"],\
+                            username=self.api_data["reddit_data"]["username"],\
+                            password=self.api_data["reddit_data"]["password"])
+        if self.sub_exists(subreddit_name, reddit):
+            subreddit = reddit.subreddit(subreddit_name)
+            for sub in subreddit.display_name.split('+'):
+                if not os.path.exists(self.IMG_DIR + sub):
+                    os.makedirs(self.IMG_DIR + sub)
 
-get_images("pics")
+            top_subreddit = subreddit.top(limit=10)
+
+            for submission in top_subreddit:
+                url_to_open = submission.url
+                try:
+                    if "//imgur" in submission.url:
+                        if self.api_data["imgur_data"]["remaining_user"] <= self.api_data["imgur_data"]["user_limit"]:
+                            raise UserLimitError('Too many requests per hour')
+                        if self.api_data["imgur_data"]["remaining_client"] <= self.api_data["imgur_data"]["client_limit"]:
+                            raise ClientLimitError('Too many request per day')
+                        url_to_open = self.get_imgur_image_url(url_to_open)
+                    dir = self.IMG_DIR + submission.subreddit.display_name + "\\" 
+                
+                    with req.urlopen(url_to_open) as url:
+                        try:
+                            info = url.info().as_string()
+                        except reqError.URLError:
+                            logging.warning('Can\'t get header of {0}'.format(url_to_open))
+                        content_type = self.get_content_type(info)
+                        if content_type != "No":
+                            id = submission.id
+                            with open(dir + id + '.' + content_type, "b+w") as f:
+                                f.write(url.read())
+                                logging.info('Image: {0} downloaded from {1}'.format(id, url_to_open))
+                        else:
+                            logging.info('Not image or video {0}'.format(url_to_open))
+                except reqError.URLError:
+                    logging.warning('Can\'t open {0}'.format(url_to_open))
+                except UserLimitError:
+                    logging.warning('You have made too many requests to imgur per hour {0}'.format(url_to_open))
+                except ClientLimitError:
+                    logging.warning('You have made too many requests to imgur per day {0}'.format(url_to_open))
+        else:
+            logging.error("Subreddit: {0} doesn't exists".format(subreddit_name))
+
+sc = Scrapper()
+sc.get_images("gifs")

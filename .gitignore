@@ -5,3 +5,5 @@ Scripts
 log.log
 pyvenv.cfg
 Include
+data/data.json
+sample/__pycache__
