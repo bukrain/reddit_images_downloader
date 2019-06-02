@@ -14,6 +14,30 @@ pip install praw
 ```
 Program is using reddit api and imgur api. To use it you must [register reddit application](https://www.reddit.com/prefs/apps/) and to download images from imgur you should register imgur application. Credentials that you will get from registering you must put in data.json file in data folder.
 
+Path to data.json:
+```
+{ProjectRoot}/data/data.json
+```
+Structure of data.json file
+```
+{
+    "reddit_data": {
+        "client_id": "ClientId",
+        "client_secret": "ClientSecret",
+        "user_agent": "UserAgent",
+        "username": "Username",
+        "password": "Password"
+    },
+    "imgur_data": {
+        "client_id": "ClientId",
+        "remaining_client": 12500,
+        "remaining_user": 500,
+        "client_limit": 25,
+        "user_limit": 25
+    }
+}
+```
+
 ### Usage
 
 To download images from subreddit simply use get_images function.
