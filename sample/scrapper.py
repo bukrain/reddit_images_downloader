@@ -68,7 +68,7 @@ class Scrapper:
         if '/gallery/' in url:
             id_image = 'gallery/' + url.split('/')[4]
         elif '/a/' in url:
-            id_image = 'a/' + url.split('/')[4]
+            id_image = 'album/' + url.split('/')[4] +'/images'
         else:
             id_image = 'image/' + url.split('/')[3]
         
@@ -88,6 +88,9 @@ class Scrapper:
         
         if 'gallery' in api_url:
             for image in resp_json['data']['images']:
+                links[image['id']] = image['link']
+        elif 'album' in api_url:
+            for image in resp_json['data']:
                 links[image['id']] = image['link']
         else:
             links[resp_json['data']['id']] = resp_json['data']['link']
@@ -165,6 +168,3 @@ class Scrapper:
                     logging.info('Not image or video {0}'.format(url_of_image))
         except reqError.URLError:
             logging.warning('Can\'t open {0}'.format(url_of_image))
-
-sc = Scrapper()
-sc.get_images("pics")
