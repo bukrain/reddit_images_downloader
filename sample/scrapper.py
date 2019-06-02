@@ -8,7 +8,7 @@ import time
 import logging
 import requests
 import json
-from errors import UserLimitError, ClientLimitError
+from errors import UserLimitError, ClientLimitError, NotFoundError
 
 
 class Scrapper:
@@ -49,7 +49,6 @@ class Scrapper:
             if item.startswith("Content-Type"):
                 ctype = item.split(' ')[1].split('/')
                 if ctype[0] == "image":
-                    print(ctype[1])
                     return ctype[1]
                 elif ctype[0] == "video":
                     return ctype[1]
@@ -64,19 +63,39 @@ class Scrapper:
         return exists
 
     def get_imgur_image_url(self, url):
-        id_image = url.split('/')[3]
-        api_url = 'https://api.imgur.com/3/image/'+ id_image
+        id_image = ''
+        links = {}
+        if '/gallery/' in url:
+            id_image = 'gallery/' + url.split('/')[4]
+        elif '/a/' in url:
+            id_image = 'a/' + url.split('/')[4]
+        else:
+            id_image = 'image/' + url.split('/')[3]
+        
+        api_url = 'https://api.imgur.com/3/'+ id_image
         headers = {
             'Authorization': 'Client-ID '+self.api_data["imgur_data"]["client_id"]
         }
+        
         response = requests.request('GET', api_url, headers = headers, allow_redirects=False)
+        if(response.status_code == 404):
+            raise NotFoundError("Image not found")
+        resp_json = response.json()
         if 'X-RateLimit-ClientRemaining' in response.headers.keys():
             self.api_data["imgur_data"]["remaining_client"] = int(response.headers['X-RateLimit-ClientRemaining'])
         if 'X-RateLimit-UserRemaining' in response.headers.keys():
             self.api_data["imgur_data"]["remaining_user"] = int(response.headers['X-RateLimit-UserRemaining'])
+        
+        if 'gallery' in api_url:
+            for image in resp_json['data']['images']:
+                links[image['id']] = image['link']
+        else:
+            links[resp_json['data']['id']] = resp_json['data']['link']
+
         with open(self.DATA_FILE,"w") as f:
-            json.dump(self.api_data,f)
-        return response.json()["data"]["link"]
+            json.dump(self.api_data,f, indent=4)
+        
+        return links
 
     def get_images(self, subreddit_name):
         logging.basicConfig(format='%(asctime)s - %(message)s', filename="log.log", filemode='a', level=logging.INFO)
@@ -95,46 +114,57 @@ class Scrapper:
             top_subreddit = subreddit.top(limit=10)
 
             for submission in top_subreddit:
-                url_of_image = submission.url
-                self.download_image(url_of_image, submission.subreddit.display_name, submission.id)
+                if "imgur" in submission.url:
+                    self.download_from_imgur(submission.url, subreddit.display_name, submission.id)
+                else:
+                    self.download_from_reddit(submission.url, subreddit.display_name, submission.id)
         else:
             logging.error("Subreddit: {0} doesn't exists".format(subreddit_name))
 
+    def download_from_reddit(self, url_of_image, name_of_subreddit, id_of_submission):
+        self.download_image(url_of_image, name_of_subreddit, id_of_submission)
+
+    def download_from_imgur(self, url_of_image, name_of_subreddit, id_of_submission):
+        url_of_images = {}
+        try:
+            if self.api_data["imgur_data"]["remaining_user"] <= self.api_data["imgur_data"]["user_limit"]:
+                raise UserLimitError('Too many requests per hour')
+            if self.api_data["imgur_data"]["remaining_client"] <= self.api_data["imgur_data"]["client_limit"]:
+                raise ClientLimitError('Too many request per day')
+        except UserLimitError:
+            logging.warning('You have made too many requests to imgur per hour {0}'.format(url_of_image))
+        except ClientLimitError:
+            logging.warning('You have made too many requests to imgur per day {0}'.format(url_of_image))
+        
+        try:
+            url_of_images = self.get_imgur_image_url(url_of_image)
+            for key in url_of_images:
+                id = "{0}_{1}".format(id_of_submission, key)
+                image_url = url_of_images[key]
+                if image_url.endswith(".gifv"):
+                    image_url = image_url[0:len(image_url) - 4] + 'mp4'
+                self.download_image(image_url, name_of_subreddit, id)
+        except NotFoundError:
+            logging.error('Image not found 404 {0}'.format(url_of_image))   
 
     def download_image(self, url_of_image, name_of_subreddit, id_of_submission):
-        url_to_open = url_of_image
         try:
-            if "//imgur" in url_to_open:
-                if self.api_data["imgur_data"]["remaining_user"] <= self.api_data["imgur_data"]["user_limit"]:
-                    raise UserLimitError('Too many requests per hour')
-                if self.api_data["imgur_data"]["remaining_client"] <= self.api_data["imgur_data"]["client_limit"]:
-                    raise ClientLimitError('Too many request per day')
-                url_to_open = self.get_imgur_image_url(url_to_open)
             dir = self.IMG_DIR + name_of_subreddit + "\\" 
-
-            if url_to_open.endswith(".gifv"):
-                url_to_open = url_to_open[0:len(url_to_open) - 4] + 'mp4'
-
-            with req.urlopen(url_to_open) as url:
+            with req.urlopen(url_of_image) as url:
                 try:
                     info = url.info().as_string()
                 except reqError.URLError:
-                    logging.warning('Can\'t get header of {0}'.format(url_to_open))
+                    logging.warning('Can\'t get header of {0}'.format(url_of_image))
                 content_type = self.get_content_type(info)
                 if content_type != "No":
                     id = id_of_submission
                     with open(dir + id + '.' + content_type, "b+w") as f:
                         f.write(url.read())
-                        logging.info('Image: {0} downloaded from {1}'.format(id, url_to_open))
+                        logging.info('Image: {0} downloaded from {1}'.format(id, url_of_image))
                 else:
-                    logging.info('Not image or video {0}'.format(url_to_open))
+                    logging.info('Not image or video {0}'.format(url_of_image))
         except reqError.URLError:
-            logging.warning('Can\'t open {0}'.format(url_to_open))
-        except UserLimitError:
-            logging.warning('You have made too many requests to imgur per hour {0}'.format(url_to_open))
-        except ClientLimitError:
-            logging.warning('You have made too many requests to imgur per day {0}'.format(url_to_open))
-
+            logging.warning('Can\'t open {0}'.format(url_of_image))
 
 sc = Scrapper()
-sc.get_images("GifRecipes")
+sc.get_images("pics")

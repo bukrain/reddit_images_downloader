@@ -8,3 +8,7 @@ class UserLimitError(Error):
 class ClientLimitError(Error):
     def __init__(self, message):
         self.message = message
+
+class NotFoundError(Error):
+    def __init__(self, message):
+        self.message = message
