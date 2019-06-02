@@ -11,7 +11,7 @@ import json
 from errors import UserLimitError, ClientLimitError, NotFoundError
 
 
-class Scrapper:
+class ImageDownloader:
     ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
     IMG_DIR = ROOT + "\\images\\"
     DATA_FILE = ROOT + "\\data\\data.json"
@@ -114,9 +114,9 @@ class Scrapper:
                 if not os.path.exists(self.IMG_DIR + sub):
                     os.makedirs(self.IMG_DIR + sub)
 
-            top_subreddit = subreddit.top(limit=10)
+            submissions = subreddit.hot(limit=10)
 
-            for submission in top_subreddit:
+            for submission in submissions:
                 if "imgur" in submission.url:
                     self.download_from_imgur(submission.url, subreddit.display_name, submission.id)
                 else:
