@@ -1,5 +1,4 @@
-# Project Title
-
+# Reddit images downloader
 Python class that downloads images from subreddit. Supports images from imgur and reddit for now.
 
 ## Getting Started
