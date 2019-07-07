@@ -7,3 +7,5 @@ pyvenv.cfg
 Include
 data/data.json
 sample/__pycache__
+output.json
+__pycache__
