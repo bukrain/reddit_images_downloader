@@ -7,13 +7,10 @@
 
 import scrapy
 
-
-class RedditimagespiderItem(scrapy.Item):
-    # define the fields for your item here like:
-    # name = scrapy.Field()
+class RedditImageFileItem(scrapy.Item):
     id = scrapy.Field()
     title = scrapy.Field()
     subreddit_name = scrapy.Field()
-    image_urls = scrapy.Field()
-    images = scrapy.Field()
-
+    media_type = scrapy.Field()
+    file_urls = scrapy.Field()
+    files = scrapy.Field()

@@ -65,9 +65,7 @@ ROBOTSTXT_OBEY = True
 # Configure item pipelines
 # See https://doc.scrapy.org/en/latest/topics/item-pipeline.html
 ITEM_PIPELINES = {
-    'redditimagespider.pipelines.RedditimagespiderPipeline': 300,
-    #'scrapy.pipelines.images.ImagesPipeline': 1,
-    'redditimagespider.pipelines.CustomImagesPipline': 1,
+    'redditimagespider.pipelines.CustomFilesPipline': 1,
 }
 
 # Enable and configure the AutoThrottle extension (disabled by default)
@@ -90,4 +88,4 @@ ITEM_PIPELINES = {
 #HTTPCACHE_DIR = 'httpcache'
 #HTTPCACHE_IGNORE_HTTP_CODES = []
 #HTTPCACHE_STORAGE = 'scrapy.extensions.httpcache.FilesystemCacheStorage'
-IMAGES_STORE = 'H:\\Builds\\python\\redditScraper\\main\\images'
+FILES_STORE = 'H:\\Builds\\python\\redditScraper\\main\\images'
