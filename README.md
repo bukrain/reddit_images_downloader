@@ -1,71 +1,58 @@
 # Reddit images downloader
-Python class that downloads images from subreddit. Supports images from imgur and reddit for now.
+Scrapper that downloads images or videos from given subreddit. Suports external sites: imgur, giphy, gfycat.
 
 ## Getting Started
 
-These instructions will get you a copy of the project up and running on your local machine for development and testing purposes.
-
 ### Prerequisites
 
-#### Praw
+#### Filetype
 ```
-pip install praw
+pip install filetype
 ```
-Program is using reddit api and imgur api. To use it you must [register reddit application](https://www.reddit.com/prefs/apps/) and to download images from imgur you should register imgur application. Credentials that you will get from registering you must put in data.json file in data folder.
-
-Path to data.json:
+#### Pywin32
 ```
-{ProjectRoot}/data/data.json
+pip install pywin32
 ```
-Structure of data.json file
+#### Pillow
 ```
-{
-    "reddit_data": {
-        "client_id": "ClientId",
-        "client_secret": "ClientSecret",
-        "user_agent": "UserAgent",
-        "username": "Username",
-        "password": "Password"
-    },
-    "imgur_data": {
-        "client_id": "ClientId",
-        "remaining_client": 12500,
-        "remaining_user": 500,
-        "client_limit": 25,
-        "user_limit": 25
-    }
-}
+pip install Pillow
+```
+#### Scrapy
+```
+pip install scrapy
 ```
 
 ### Usage
 
-To download images from subreddit simply use get_images function.
+To run the scrapper go to redditimagespider folder and run command
+```
+scrapy crawl reddit-spider
+```
+To change subreddit from which to download or sort type you need to change url of start_urls
+```
+# Downloads from gifs subreddit
+start_urls = ["https://gateway.reddit.com/desktopapi/v1/subreddits/gifs?sort=new&allow_over18=1"]
 
-```
-image_downloader = ImageDownloader()
-image_downloader.get_images("name of subreddit")
-```
+# Change subreddits/gifs to subreddits/pics to download from pics subreddit
+start_urls = ["https://gateway.reddit.com/desktopapi/v1/subreddits/pics?sort=new&allow_over18=1"]
 
-By default only top 10 subreddit submissions are checked. To change this you need to change belowe line to something else.
+# To change sort type, change sort parameter. For example to sort by hot change to sort=hot
+start_urls = ["https://gateway.reddit.com/desktopapi/v1/subreddits/gifs?sort=hot&allow_over18=1"]
+```
+Pictures are saved in folder with the name of subreddit inside images folder. Image is named after reddit submission id sometimes there is added Imgur id.
 
+To change where images are downloaded, change FILES_STORE inside `settings.py`
 ```
-# Gets first 10 top submissions of subreddit
-submissions = subreddit.top(limit=10)
-
-# Gets first 20 submissions in hot of subreddit
-submissions = subreddit.hot(limit=20)
+# Images are downloaded in folder images on c disk
+FILES_STORE = 'c:\\images'
 ```
-Get first 10 top pictures in **pics** subreddit.
-```
-image_downloader = ImageDownloader()
-image_downloader.get_images("pics")
-```
-
-Pictures are saved in folder with the name of subreddit inside images folder. Image is named after reddit submission id plus imgur id if downloaded from imgur.
 
 ## Built With
 
-* [Praw](https://praw.readthedocs.io/en/latest/) - The Python Reddit API Wrapper
+* [Scrapy](https://scrapy.org/) - An open source and collaborative framework for extracting the data you need from websites.
+* [Pillow](https://pillow.readthedocs.io/en/stable/index.html) - PIL fork by [Alex Clark and Contributors](https://github.com/python-pillow/Pillow/graphs/contributors)
+* [Pywin32](https://github.com/mhammond/pywin32) - Python for Win32 (pywin32) extensions, which provides access to many of the Windows APIs from Python
+* [Filetype](https://pypi.org/project/filetype/) - Package to infer file type and MIME type
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details

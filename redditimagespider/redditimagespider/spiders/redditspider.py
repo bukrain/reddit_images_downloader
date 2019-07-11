@@ -3,7 +3,7 @@ import scrapy
 import json
 
 class RedditSpider(scrapy.Spider):
-    name = 'reddit-images-spider'
+    name = 'reddit-spider'
     start_urls = ["https://gateway.reddit.com/desktopapi/v1/subreddits/gifs?sort=new&allow_over18=1"]
     page_limit = 10
     i = 0
@@ -61,7 +61,6 @@ class RedditSpider(scrapy.Spider):
         if response.meta['type'] == 'embed':
             image_containers = response.css('.post-image-container')
             for image_container in image_containers:
-                print('\n\n\n{}\n\n\n'.format(image_container.xpath('@id').get()))
                 name = id + '_{}'.format(image_container.xpath('@id').get())
                 id = image_container.xpath('@id').get()
                 image_type = image_container.xpath('@itemtype').get()

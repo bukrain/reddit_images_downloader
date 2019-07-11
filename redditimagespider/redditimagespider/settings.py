@@ -1,3 +1,4 @@
+import os
 # -*- coding: utf-8 -*-
 
 # Scrapy settings for redditimagespider project
@@ -88,4 +89,4 @@ ITEM_PIPELINES = {
 #HTTPCACHE_DIR = 'httpcache'
 #HTTPCACHE_IGNORE_HTTP_CODES = []
 #HTTPCACHE_STORAGE = 'scrapy.extensions.httpcache.FilesystemCacheStorage'
-FILES_STORE = 'H:\\Builds\\python\\redditScraper\\main\\images'
+FILES_STORE = os.path.join(os.getcwd(),'images')
