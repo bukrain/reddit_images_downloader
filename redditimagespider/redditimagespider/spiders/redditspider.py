@@ -19,7 +19,6 @@ class RedditSpider(scrapy.Spider):
                     title = data['posts'][postId]['title']
                     id = data['posts'][postId]['id']
                     subreddit_name = data['posts'][postId]['permalink'].split('/')[4]
-                    last_id = id
                     meta = {'title': title, 'id': id, 'subreddit_name': subreddit_name, 'type': media_type}
                     if 'gfycat' in data['posts'][postId]['domain']:
                         url = data['posts'][postId]['source']['url']
@@ -43,7 +42,11 @@ class RedditSpider(scrapy.Spider):
                         yield RedditImageFileItem(id = id, title = title, file_urls = [image_url],
                                                   subreddit_name = subreddit_name, media_type=media_type)
         if self.i < self.page_limit :
-            yield scrapy.Request(response.url + '&after={}'.format(last_id), self.parse)
+            last_id = data['postIds'][-1]
+            url = response.url
+            if 'after' in response.url:
+                url = response.url[:response.url.rfind('&')]
+            yield scrapy.Request(url + '&after={}'.format(last_id), self.parse)
         
     def parse_gfycat(self, response):
         image_url = response.css('.actual-gif-image').xpath('@src').get()
@@ -57,9 +60,9 @@ class RedditSpider(scrapy.Spider):
         title = response.meta['title']
         subreddit_name = response.meta['subreddit_name']
         media_type = response.meta['type']
-
-        if response.meta['type'] == 'embed':
+        if media_type == 'embed':
             image_containers = response.css('.post-image-container')
+            
             for image_container in image_containers:
                 name = id + '_{}'.format(image_container.xpath('@id').get())
                 id = image_container.xpath('@id').get()
@@ -76,7 +79,8 @@ class RedditSpider(scrapy.Spider):
                 content_type = response.headers['Content-Type'].decode('utf-8')
                 if 'image' not in content_type and 'video' not in content_type:
                     src = response.css('.video-elements').xpath('source/@src')
-                    image_url = 'https:' + src.get()
+                    if src.get() is not None:
+                        image_url = 'https:' + src.get()
             yield RedditImageFileItem(id = image_id, title = title,
                                     subreddit_name = subreddit_name,
                                     file_urls = [image_url], media_type = media_type) 
