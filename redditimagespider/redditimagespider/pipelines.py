@@ -32,17 +32,13 @@ class CustomFilesPipline(FilesPipeline):
         ext = filetype.guess(buf)
         extension = ''
         if ext is None:
-            print('\n\n\n{}\n'.format(request.url))
             extension = os.path.splitext(request.url)[1].split('?')
-            print('{}\n'.format(extension))
             if len(extension) > 1:
-                print('{}\n'.format(extension[1]))
                 index_a = extension[1].index('=')
                 index_b = extension[1].index('&')
                 extension = extension[1][index_a+1:index_b]
             else:
                 extension = extension[0][1:]
-            print('{}\n\n\n'.format(extension))
         else:
             extension = ext.extension
         checksum = md5sum(buf)

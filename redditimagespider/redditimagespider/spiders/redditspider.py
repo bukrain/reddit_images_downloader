@@ -4,8 +4,8 @@ import json
 
 class RedditSpider(scrapy.Spider):
     name = 'reddit-images-spider'
-    start_urls = ["https://gateway.reddit.com/desktopapi/v1/subreddits/pics?sort=new&allow_over18=1"]
-    page_limit = 5
+    start_urls = ["https://gateway.reddit.com/desktopapi/v1/subreddits/gifs?sort=new&allow_over18=1"]
+    page_limit = 10
     i = 0
     
     def parse(self, response):
@@ -52,13 +52,33 @@ class RedditSpider(scrapy.Spider):
                                   file_urls = [image_url], media_type=response.meta['type'])
 
     def parse_imgur(self, response):
-        image_url = response.url
-        if 'gif' in response.url:
-            content_type = response.headers['Content-Type'].decode('utf-8')
-            if 'image' not in content_type and 'video' not in content_type:
-                src = response.css('.video-elements').xpath('source/@src')
-                image_url = 'https:' + src.get()
-        yield RedditImageFileItem(id = response.meta['id'], title = response.meta['title'],
-                                  subreddit_name = response.meta['subreddit_name'],
-                                  file_urls = [image_url], media_type=response.meta['type']) 
+        image_urls = {}
+        id = response.meta['id']
+        title = response.meta['title']
+        subreddit_name = response.meta['subreddit_name']
+        media_type = response.meta['type']
+
+        if response.meta['type'] == 'embed':
+            image_containers = response.css('.post-image-container')
+            for image_container in image_containers:
+                print('\n\n\n{}\n\n\n'.format(image_container.xpath('@id').get()))
+                name = id + '_{}'.format(image_container.xpath('@id').get())
+                id = image_container.xpath('@id').get()
+                image_type = image_container.xpath('@itemtype').get()
+                ext = 'jpg'
+                if 'VideoObject' in image_type or 'MusicVideoObject' in image_type or 'Clip' in image_type:
+                    ext = 'gifv'
+                image_urls[name] = 'https://i.imgur.com/{}.{}'.format(id, ext)
+        else:
+            image_urls[id] = response.url
+
+        for image_id, image_url in image_urls.items():
+            if 'gif' in image_url:
+                content_type = response.headers['Content-Type'].decode('utf-8')
+                if 'image' not in content_type and 'video' not in content_type:
+                    src = response.css('.video-elements').xpath('source/@src')
+                    image_url = 'https:' + src.get()
+            yield RedditImageFileItem(id = image_id, title = title,
+                                    subreddit_name = subreddit_name,
+                                    file_urls = [image_url], media_type = media_type) 
 
